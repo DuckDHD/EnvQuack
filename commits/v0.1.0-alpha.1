@@ -1,0 +1,101 @@
+# Changelog
+
+All notable changes to EnvQuack will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Planned
+- Unit tests for all components
+- Performance optimizations
+- Better error handling and messages
+- Windows compatibility improvements
+
+## [0.1.0-alpha.1] - 2025-01-XX
+
+### Added
+- **Core functionality**: Compare `.env` files against `.env.example`
+- **CLI commands**: `check`, `sync`, and `audit` commands with Cobra framework
+- **Docker Compose support**: Parse `environment` and `env_file` configurations
+- **Dockerfile support**: Parse `ARG` and `ENV` instructions with variable references
+- **Comprehensive audit**: Multi-source environment analysis across all files
+- **Auto-sync functionality**: Automatically add missing variables to `.env` files
+- **Beautiful output**: ASCII duck art, colored output, and user-friendly reports
+- **Flexible configuration**: Custom file paths for all supported file types
+
+### Features
+- Parse multiple environment file formats (KEY=value, quoted values, comments)
+- Detect missing variables across different sources
+- Identify unused variables and build arguments
+- Handle Docker Compose variable references (`${VAR}`, `${VAR:-default}`)
+- Support multi-line Dockerfile instructions with backslash continuations
+- Service-by-service breakdown in Docker Compose analysis
+- Verbose reporting mode for detailed insights
+- Option to disable colors and ASCII art for CI/CD environments
+
+### Technical Details
+- Built with Go 1.21+
+- Uses `spf13/cobra` for CLI framework
+- Uses `gopkg.in/yaml.v3` for Docker Compose parsing
+- Modular architecture with separate parsers for each file type
+- Clean separation between parsing, analysis, and reporting
+
+### CLI Options
+- `--env`: Specify .env file path (default: `.env`)
+- `--example`: Specify .env.example file path (default: `.env.example`)
+- `--compose`: Specify docker-compose file path (default: `docker-compose.yml`)
+- `--dockerfile`: Specify Dockerfile path (default: `Dockerfile`)
+- `--verbose, -v`: Enable verbose output with additional details
+- `--no-color`: Disable colored output for CI/CD environments
+- `--no-duck`: Disable ASCII duck art for serious environments
+
+### Known Limitations
+- Limited test coverage (alpha release)
+- Windows path handling may need improvements
+- Some edge cases in complex docker-compose configurations
+- Performance not optimized for very large files
+- Error messages could be more descriptive
+
+### Breaking Changes
+- None (initial release)
+
+---
+
+## Release Notes
+
+### v0.1.0-alpha.1 - First Alpha Release 🦆
+
+This is the first public release of EnvQuack! While it's an alpha version, it includes a comprehensive set of features for environment variable management in Docker-based projects.
+
+**What's included:**
+- Complete .env file management (check, sync, audit)
+- Full Docker Compose integration
+- Dockerfile analysis with ARG/ENV parsing
+- Beautiful CLI with duck-themed output
+- Comprehensive audit across all environment sources
+
+**Perfect for:**
+- Docker projects with complex environment setups
+- Teams that want consistent environment configuration
+- CI/CD pipelines that need env validation
+- Developers who like duck-themed error messages 🦆
+
+**Try it out:**
+```bash
+go install github.com/DuckDHD/EnvQuack/cmd/envquack@v0.1.0-alpha.1
+envquack audit
+```
+
+**Feedback wanted!**
+This is an alpha release, so please report any bugs, feature requests, or feedback at [GitHub Issues](https://github.com/DuckDHD/EnvQuack/issues). Your input will help shape the stable v0.1.0 release!
+
+---
+
+## Version History
+
+- **v0.1.0-alpha.1**: Initial alpha release with core functionality
+- **v0.1.0**: *(planned)* Stable release with bug fixes and polish  
+- **v0.2.0**: *(planned)* Kubernetes ConfigMap/Secret support
+- **v1.0.0**: *(planned)* Central schema files and multi-environment support
