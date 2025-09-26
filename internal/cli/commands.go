@@ -3,17 +3,18 @@ package cli
 import (
 	"fmt"
 	"os"
-
-	"github.com/spf13/cobra"
+	"strings"
 
 	"github.com/DuckDHD/EnvQuack/internal/checker"
 	"github.com/DuckDHD/EnvQuack/internal/parser"
 	"github.com/DuckDHD/EnvQuack/internal/quack"
+	"github.com/spf13/cobra"
 )
 
 var (
 	envFile     string
 	exampleFile string
+	composeFile string
 	verbose     bool
 	noColor     bool
 	noDuck      bool
@@ -38,7 +39,20 @@ This includes:
 	RunE: runCheck,
 }
 
-// syncCmd represents the sync command
+// auditCmd represents the audit command
+var auditCmd = &cobra.Command{
+	Use:   "audit",
+	Short: "Comprehensive audit of env files vs docker-compose requirements",
+	Long: `Audit performs a comprehensive check across multiple sources:
+
+- Compares .env files against .env.example
+- Analyzes docker-compose.yml environment requirements  
+- Checks for missing env_file references
+- Shows service-by-service breakdown
+
+This gives you a complete picture of your environment configuration.`,
+	RunE: runAudit,
+}
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Sync missing variables from .env.example to .env",
@@ -52,6 +66,7 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&envFile, "env", ".env", "path to .env file")
 	rootCmd.PersistentFlags().StringVar(&exampleFile, "example", ".env.example", "path to .env.example file")
+	rootCmd.PersistentFlags().StringVar(&composeFile, "compose", "docker-compose.yml", "path to docker-compose file")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().BoolVar(&noDuck, "no-duck", false, "disable ASCII duck art")
@@ -59,6 +74,7 @@ func init() {
 	// Add commands
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(syncCmd)
+	rootCmd.AddCommand(auditCmd)
 }
 
 // Execute runs the root command
@@ -167,9 +183,101 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func runAudit(cmd *cobra.Command, args []string) error {
+	fmt.Println("🔍 Running comprehensive environment audit...\n")
+
+	hasErrors := false
+
+	// 1. Basic .env vs .env.example check
+	if err := checkFileExists(exampleFile); err == nil && fileExists(envFile) {
+		fmt.Println("📋 Checking .env vs .env.example:")
+		result, err := checker.CompareEnvFiles(envFile, exampleFile)
+		if err != nil {
+			fmt.Printf("  ❌ Error: %v\n", err)
+			hasErrors = true
+		} else {
+			opts := &checker.ReportOptions{
+				ShowDuck: false,
+				Colorize: !noColor,
+				Verbose:  false,
+			}
+
+			if !result.HasIssues() {
+				fmt.Println("  ✅ Basic env check passed")
+			} else {
+				fmt.Print("  " + strings.ReplaceAll(checker.GenerateReport(result, opts), "\n", "\n  "))
+				hasErrors = true
+			}
+		}
+		fmt.Println()
+	}
+
+	// 2. Docker Compose environment check
+	if err := checkFileExists(composeFile); err == nil {
+		fmt.Println("🐳 Checking docker-compose environment requirements:")
+
+		envFiles := []string{}
+		if fileExists(envFile) {
+			envFiles = append(envFiles, envFile)
+		}
+
+		composeResult, err := checker.CompareComposeWithEnv(composeFile, envFiles)
+		if err != nil {
+			fmt.Printf("  ❌ Error parsing compose file: %v\n", err)
+			hasErrors = true
+		} else {
+			opts := &checker.ReportOptions{
+				ShowDuck: false,
+				Colorize: !noColor,
+				Verbose:  verbose,
+			}
+
+			if !composeResult.HasIssues() {
+				fmt.Println("  ✅ Docker Compose check passed")
+			} else {
+				report := checker.GenerateComposeReport(composeResult, opts)
+				fmt.Print("  " + strings.ReplaceAll(report, "\n", "\n  "))
+				hasErrors = true
+			}
+		}
+		fmt.Println()
+	} else {
+		fmt.Printf("  ℹ️  No docker-compose.yml found, skipping compose check\n\n")
+	}
+
+	// 3. Summary
+	if !noDuck {
+		if hasErrors {
+			fmt.Println(quack.GetAngryDuck())
+			fmt.Println("QUACK! 🦆 Audit found issues that need attention!")
+		} else {
+			fmt.Println(quack.GetHappyDuck())
+			fmt.Println("✅ Audit passed! Your environment is well organized.")
+		}
+	} else {
+		if hasErrors {
+			fmt.Println("❌ Audit found issues that need attention!")
+		} else {
+			fmt.Println("✅ Audit passed! Your environment is well organized.")
+		}
+	}
+
+	if hasErrors {
+		os.Exit(1)
+	}
+
+	return nil
+}
+
 func checkFileExists(filename string) error {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		return fmt.Errorf("file %s does not exist", filename)
 	}
 	return nil
+}
+
+// fileExists is a helper that returns true if file exists, false otherwise
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
 }
