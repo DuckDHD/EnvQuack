@@ -12,12 +12,13 @@ import (
 )
 
 var (
-	envFile     string
-	exampleFile string
-	composeFile string
-	verbose     bool
-	noColor     bool
-	noDuck      bool
+	envFile        string
+	exampleFile    string
+	composeFile    string
+	dockerfileFile string
+	verbose        bool
+	noColor        bool
+	noDuck         bool
 )
 
 // rootCmd represents the base command
@@ -42,12 +43,13 @@ This includes:
 // auditCmd represents the audit command
 var auditCmd = &cobra.Command{
 	Use:   "audit",
-	Short: "Comprehensive audit of env files vs docker-compose requirements",
+	Short: "Comprehensive audit of env files vs docker-compose and Dockerfile requirements",
 	Long: `Audit performs a comprehensive check across multiple sources:
 
 - Compares .env files against .env.example
 - Analyzes docker-compose.yml environment requirements  
 - Checks for missing env_file references
+- Analyzes Dockerfile ARG and ENV instructions
 - Shows service-by-service breakdown
 
 This gives you a complete picture of your environment configuration.`,
@@ -67,6 +69,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&envFile, "env", ".env", "path to .env file")
 	rootCmd.PersistentFlags().StringVar(&exampleFile, "example", ".env.example", "path to .env.example file")
 	rootCmd.PersistentFlags().StringVar(&composeFile, "compose", "docker-compose.yml", "path to docker-compose file")
+	rootCmd.PersistentFlags().StringVar(&dockerfileFile, "dockerfile", "Dockerfile", "path to Dockerfile")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 	rootCmd.PersistentFlags().BoolVar(&noDuck, "no-duck", false, "disable ASCII duck art")
@@ -245,7 +248,40 @@ func runAudit(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  ℹ️  No docker-compose.yml found, skipping compose check\n\n")
 	}
 
-	// 3. Summary
+	// 3. Dockerfile environment check
+	if err := checkFileExists(dockerfileFile); err == nil {
+		fmt.Println("🐋 Checking Dockerfile environment requirements:")
+
+		envFiles := []string{}
+		if fileExists(envFile) {
+			envFiles = append(envFiles, envFile)
+		}
+
+		dockerfileResult, err := checker.CompareDockerfileWithEnv(dockerfileFile, envFiles)
+		if err != nil {
+			fmt.Printf("  ❌ Error parsing Dockerfile: %v\n", err)
+			hasErrors = true
+		} else {
+			opts := &checker.ReportOptions{
+				ShowDuck: false,
+				Colorize: !noColor,
+				Verbose:  verbose,
+			}
+
+			if !dockerfileResult.HasIssues() {
+				fmt.Println("  ✅ Dockerfile check passed")
+			} else {
+				report := checker.GenerateDockerfileReport(dockerfileResult, opts)
+				fmt.Print("  " + strings.ReplaceAll(report, "\n", "\n  "))
+				hasErrors = true
+			}
+		}
+		fmt.Println()
+	} else {
+		fmt.Printf("  ℹ️  No Dockerfile found, skipping Dockerfile check\n\n")
+	}
+
+	// 4. Summary
 	if !noDuck {
 		if hasErrors {
 			fmt.Println(quack.GetAngryDuck())
