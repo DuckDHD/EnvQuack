@@ -72,8 +72,6 @@ go install github.com/DuckDHD/EnvQuack/cmd/envquack@v0.1.0-alpha.1
 ```bash
 git clone https://github.com/DuckDHD/EnvQuack
 cd EnvQuack
-git clone https://github.com/DuckDHD/EnvQuack
-cd EnvQuack
 go build -o envquack cmd/envquack/main.go
 ```
 
