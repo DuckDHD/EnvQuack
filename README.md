@@ -32,6 +32,17 @@ EnvQuack is a CLI tool that helps you keep your environment variables synchroniz
 - 🔍 **Comprehensive audit**: Check all sources in one command
 - 🔄 **Auto-sync**: Add missing variables to your `.env` automatically
 - 🎨 **Beautiful output**: ASCII duck art and colored reports
+- **Docker Compose issues**: Variables required by services but missing in env files
+- **Dockerfile problems**: ARG/ENV mismatches and unused build arguments
+
+## Features
+
+- 🦆 **Basic env checking**: Compare `.env` vs `.env.example`
+- 🐳 **Docker Compose support**: Analyze `environment` and `env_file` usage
+- 🐋 **Dockerfile analysis**: Parse ARG and ENV instructions
+- 🔍 **Comprehensive audit**: Check all sources in one command
+- 🔄 **Auto-sync**: Add missing variables to your `.env` automatically
+- 🎨 **Beautiful output**: ASCII duck art and colored reports
 
 ## Installation
 
@@ -59,6 +70,8 @@ go install github.com/DuckDHD/EnvQuack/cmd/envquack@v0.1.0-alpha.1
 ### From Source
 
 ```bash
+git clone https://github.com/DuckDHD/EnvQuack
+cd EnvQuack
 git clone https://github.com/DuckDHD/EnvQuack
 cd EnvQuack
 go build -o envquack cmd/envquack/main.go
@@ -157,11 +170,51 @@ Example output:
 QUACK! 🦆 Audit found issues that need attention!
 ```
 
+### Comprehensive audit
+
+Run a full environment audit across all your Docker files:
+
+```bash
+envquack audit
+```
+
+This will check:
+- `.env` vs `.env.example` consistency
+- Docker Compose environment requirements
+- Dockerfile ARG and ENV usage
+- Missing env_file references
+
+Example output:
+```
+🔍 Running comprehensive environment audit...
+
+📋 Checking .env vs .env.example:
+  ✅ Basic env check passed
+
+🐳 Checking docker-compose environment requirements:
+  ✅ Docker Compose check passed
+
+🐋 Checking Dockerfile environment requirements:
+  🔴 Variables required by Dockerfile but missing in env files:
+    - BUILD_VERSION
+    - REDIS_URL
+
+  🟠 ARG variables declared but never used:
+    - UNUSED_BUILD_ARG
+
+   __
+<(X )___   QUACK!
+ ( ._> /
+  '---'
+QUACK! 🦆 Audit found issues that need attention!
+```
+
 ### Custom file paths
 
 ```bash
 envquack check --env .env.local --example .env.template
 envquack sync --env config/.env --example config/.env.example
+envquack audit --compose docker-compose.prod.yml --dockerfile Dockerfile.prod
 envquack audit --compose docker-compose.prod.yml --dockerfile Dockerfile.prod
 ```
 
@@ -172,10 +225,69 @@ envquack audit --compose docker-compose.prod.yml --dockerfile Dockerfile.prod
 - `--compose`: Path to docker-compose file (default: `docker-compose.yml`)
 - `--dockerfile`: Path to Dockerfile (default: `Dockerfile`)
 - `--verbose`, `-v`: Verbose output (shows additional details like unused ARGs)
+- `--compose`: Path to docker-compose file (default: `docker-compose.yml`)
+- `--dockerfile`: Path to Dockerfile (default: `Dockerfile`)
+- `--verbose`, `-v`: Verbose output (shows additional details like unused ARGs)
 - `--no-color`: Disable colored output
 - `--no-duck`: Disable ASCII duck art (for serious environments)
 
 ## Examples
+
+### Complete Docker setup workflow
+
+1. Create your environment files:
+
+```bash
+# .env.example - Document all required variables
+NODE_ENV=production
+API_URL=https://api.example.com
+DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
+SECRET_KEY=your_secret_key_here
+REDIS_URL=redis://localhost:6379
+```
+
+2. Create your Dockerfile with proper ARG/ENV usage:
+
+```dockerfile
+# Build arguments
+ARG NODE_ENV=production
+ARG API_URL
+ARG SECRET_KEY
+
+# Runtime environment
+ENV NODE_ENV=${NODE_ENV}
+ENV API_BASE_URL=${API_URL}  
+ENV JWT_SECRET=${SECRET_KEY}
+```
+
+3. Set up docker-compose.yml:
+
+```yaml
+services:
+  web:
+    build:
+      args:
+        - NODE_ENV=${NODE_ENV}
+        - API_URL=${API_URL}
+        - SECRET_KEY=${SECRET_KEY}
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    env_file: .env
+```
+
+4. Run comprehensive audit:
+
+```bash
+envquack audit --verbose
+```
+
+5. Sync missing variables:
+
+```bash
+envquack sync
+```
+
+6. Fill in actual values in your `.env` file.
 
 ### Complete Docker setup workflow
 
@@ -280,8 +392,14 @@ envquack/
 │   │   ├── env.go           # .env file parser
 │   │   ├── compose.go       # docker-compose.yml parser  
 │   │   └── dockerfile.go    # Dockerfile parser
+│   ├── parser/
+│   │   ├── env.go           # .env file parser
+│   │   ├── compose.go       # docker-compose.yml parser  
+│   │   └── dockerfile.go    # Dockerfile parser
 │   ├── checker/
 │   │   ├── diff.go          # Environment comparison logic
+│   │   ├── compose.go       # Docker Compose analysis
+│   │   ├── dockerfile.go    # Dockerfile analysis
 │   │   ├── compose.go       # Docker Compose analysis
 │   │   ├── dockerfile.go    # Dockerfile analysis
 │   │   └── report.go        # Report generation
