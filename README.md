@@ -2,6 +2,14 @@
 
 Environment Variable Drift Detective – Keep your `.env` files in sync!
 
+[![Go Version](https://img.shields.io/badge/Go-1.23+-blue.svg)](https://golang.org/)
+[![Release](https://img.shields.io/github/v/release/DuckDHD/EnvQuack?include_prereleases&sort=semver)](https://github.com/DuckDHD/EnvQuack/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/DuckDHD/EnvQuack)](https://goreportcard.com/report/github.com/DuckDHD/EnvQuack)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/DuckDHD/EnvQuack/issues)
+
+
+
 ```
  ___            ___                 _    
 | __|_ ___ ___ / _ \ _  _ __ _ __ _ _| |__ 
@@ -36,6 +44,16 @@ EnvQuack is a CLI tool that keeps your environment variables synchronized across
 - 🔍 **Comprehensive audit**: Check all sources in one command
 - 🔄 **Auto-sync**: Add missing variables to `.env` automatically
 - 🎨 **Beautiful output**: ASCII duck art and color-coded reports
+
+---
+
+## Supported Platforms
+
+| OS      | Architecture | Status |
+|---------|--------------|--------|
+| Linux   | amd64        | ✅ |
+| macOS   | arm64        | ✅ |
+| Windows | amd64        | ✅ (needs more testing) |
 
 ---
 
