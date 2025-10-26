@@ -71,8 +71,22 @@ func compareDockerfileWithEnvVars(dockerfileInfo *parser.DockerfileEnvInfo, envV
 
 	// Find missing variables (referenced in Dockerfile but not in env)
 	for _, dockerVar := range dockerfileVars {
-		// Skip variables that are defined as ENV in Dockerfile (they have defaults)
-		if !dockerfileInfo.EnvVars.Has(dockerVar) && !envVars.Has(dockerVar) {
+		// Check if variable is defined as ENV in Dockerfile with a non-variable value (has a default)
+		if envValue, hasEnv := dockerfileInfo.EnvVars[dockerVar]; hasEnv {
+			// If the ENV value is not a variable reference, it has a default
+			if !isObviousConstant(envValue) {
+				// This ENV has a hardcoded value, so it's not required in .env
+				continue
+			}
+		}
+
+		// Skip if variable is an ARG with a default value
+		if argValue, isArg := dockerfileInfo.ArgVars[dockerVar]; isArg && argValue != "" {
+			continue
+		}
+
+		// Check if it's in env files
+		if !envVars.Has(dockerVar) {
 			result.MissingInEnv = append(result.MissingInEnv, dockerVar)
 		}
 	}
@@ -125,26 +139,59 @@ func compareDockerfileWithEnvVars(dockerfileInfo *parser.DockerfileEnvInfo, envV
 }
 
 // isObviousConstant checks if a value looks like a constant rather than config
+// Returns true for values that are obviously not configuration (should be filtered out)
 func isObviousConstant(value string) bool {
-	constants := []string{
-		"production", "development", "staging", "test",
-		"true", "false", "0", "1",
-		"utf8", "utf-8", "en_US", "C",
-		"/app", "/usr/local/bin", "/bin", "/tmp",
+	// Variable references should always be filtered
+	if strings.HasPrefix(value, "${") || strings.HasPrefix(value, "$") {
+		return true
 	}
 
 	lowerValue := strings.ToLower(value)
-	for _, constant := range constants {
-		if lowerValue == constant {
+
+	// Boolean and simple numeric values
+	if lowerValue == "true" || lowerValue == "false" || lowerValue == "0" || lowerValue == "1" {
+		return true
+	}
+
+	// Encoding/locale constants
+	encodingLocales := []string{
+		"utf8", "utf-8", "en_us", "c", "posix",
+	}
+	for _, locale := range encodingLocales {
+		if lowerValue == locale {
 			return true
 		}
 	}
 
-	// Check if it looks like a path or URL structure
-	if strings.HasPrefix(value, "/") ||
-		strings.Contains(value, "://") ||
-		strings.HasPrefix(value, "${") {
-		return true
+	// Common log levels (these are typically constants)
+	logLevels := []string{
+		"debug", "info", "warn", "warning", "error", "fatal", "trace",
+	}
+	for _, level := range logLevels {
+		if lowerValue == level {
+			return true
+		}
+	}
+
+	// Generic system paths (common Docker paths)
+	commonPaths := []string{
+		"/app", "/usr/bin", "/usr/local/bin", "/bin", "/tmp", "/var", "/etc",
+		"/usr/local", "/opt", "/home", "/root",
+	}
+	for _, path := range commonPaths {
+		if value == path {
+			return true
+		}
+	}
+
+	// Check if it's a simple numeric port that's very common
+	commonPorts := []string{
+		"80", "443", "3000", "5000", "8000", "8080", "9000",
+	}
+	for _, port := range commonPorts {
+		if value == port {
+			return true
+		}
 	}
 
 	return false

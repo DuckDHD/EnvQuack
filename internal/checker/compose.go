@@ -2,6 +2,7 @@ package checker
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -59,8 +60,8 @@ func compareComposeWithEnvVars(composeInfo *parser.ComposeEnvInfo, envVars parse
 		ServiceBreakdown: make(map[string][]string),
 	}
 
-	// Get all variables referenced in compose
-	composeVars := composeInfo.GetAllEnvVars()
+	// Get all variables referenced in compose (only actual variable references, not env keys)
+	composeVars := composeInfo.VariableRefs
 	composeVarSet := make(map[string]bool)
 	for _, v := range composeVars {
 		composeVarSet[v] = true
@@ -83,9 +84,13 @@ func compareComposeWithEnvVars(composeInfo *parser.ComposeEnvInfo, envVars parse
 	// Check service-specific breakdowns
 	for serviceName, serviceVars := range composeInfo.ServiceVars {
 		missing := []string{}
-		for varName := range serviceVars {
-			if !envVars.Has(varName) {
-				missing = append(missing, varName)
+		for _, varValue := range serviceVars {
+			// Extract variable references from the value
+			refs := extractVarRefsFromValue(varValue)
+			for _, ref := range refs {
+				if !envVars.Has(ref) && !contains(missing, ref) {
+					missing = append(missing, ref)
+				}
 			}
 		}
 		if len(missing) > 0 {
@@ -107,6 +112,41 @@ func compareComposeWithEnvVars(composeInfo *parser.ComposeEnvInfo, envVars parse
 	sort.Strings(result.MissingEnvFiles)
 
 	return result
+}
+
+// extractVarRefsFromValue extracts variable references like ${VAR} from a value string
+func extractVarRefsFromValue(value string) []string {
+	if value == "" {
+		return []string{}
+	}
+
+	// Match ${VAR}, ${VAR:-default}, and $VAR patterns
+	varRefRegex := regexp.MustCompile(`\$\{?([A-Z_][A-Z0-9_]*)[:\-}]?`)
+	matches := varRefRegex.FindAllStringSubmatch(value, -1)
+
+	vars := []string{}
+	seen := make(map[string]bool)
+	for _, match := range matches {
+		if len(match) > 1 {
+			varName := match[1]
+			if !seen[varName] {
+				vars = append(vars, varName)
+				seen[varName] = true
+			}
+		}
+	}
+
+	return vars
+}
+
+// contains checks if a string slice contains a value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
 
 // GenerateComposeReport creates a formatted report for compose comparison
