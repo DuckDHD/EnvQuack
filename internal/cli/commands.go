@@ -187,7 +187,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 }
 
 func runAudit(cmd *cobra.Command, args []string) error {
-	fmt.Println("🔍 Running comprehensive environment audit...\n")
+	fmt.Println("🔍 Running comprehensive environment audit...")
 
 	hasErrors := false
 
