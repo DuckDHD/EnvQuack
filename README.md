@@ -1,6 +1,14 @@
 # EnvQuack 🦆
 
-Environment Variable Drift Detective - Keep your `.env` files in sync!
+Environment Variable Drift Detective – Keep your `.env` files in sync!
+
+[![Go Version](https://img.shields.io/badge/Go-1.23+-blue.svg)](https://golang.org/)
+[![Release](https://img.shields.io/github/v/release/DuckDHD/EnvQuack?sort=semver)](https://github.com/DuckDHD/EnvQuack/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/DuckDHD/EnvQuack)](https://goreportcard.com/report/github.com/DuckDHD/EnvQuack)
+[![Test Coverage](https://img.shields.io/badge/coverage-75.6%25-brightgreen.svg)](TEST_COVERAGE_REPORT.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/DuckDHD/EnvQuack/pulls)
+[![Production Ready](https://img.shields.io/badge/status-production--ready-success.svg)](https://github.com/DuckDHD/EnvQuack/releases/tag/v0.1.0)
 
 ```
  ___            ___                 _    
@@ -11,20 +19,23 @@ Environment Variable Drift Detective - Keep your `.env` files in sync!
 Environment Variable Drift Detective 🦆
 ```
 
-> ⚠️ **Alpha Release Notice (v0.1.0-alpha.1)**  
-> EnvQuack is currently in **early alpha**. Expect rapid changes, incomplete features, and potential breaking changes.  
-> Feedback, issues, and feature requests are highly appreciated as we shape the tool's roadmap.
+> ✨ **Production Release v0.1.0**  
+> EnvQuack is now **production-ready** with comprehensive security, automatic backups, and 75.6% test coverage.  
+> Safe for use in real-world projects and CI/CD pipelines!
+
+---
 
 ## What is EnvQuack?
 
-EnvQuack is a CLI tool that helps you keep your environment variables synchronized across different files. It compares your `.env` file against `.env.example` and detects:
+EnvQuack is a production-grade CLI tool that keeps your environment variables synchronized and secure. It detects drift, prevents data loss, and protects your secrets.
 
-- **Missing variables**: Present in example but absent in your `.env`
-- **Extra variables**: Present in your `.env` but not documented in example
-- **Docker Compose issues**: Variables required by services but missing in env files
-- **Dockerfile problems**: ARG/ENV mismatches and unused build arguments
-
-## Features
+**Key Capabilities:**
+- 🔍 **Drift Detection**: Compare `.env` vs `.env.example`
+- 🐳 **Docker Integration**: Validate Compose and Dockerfile environments
+- 📦 **Automatic Backups**: Never lose data during sync operations
+- 🔒 **Secret Protection**: Auto-masks sensitive values in output
+- 💬 **Smart Errors**: Line numbers with helpful hints
+- 🔐 **Security**: Path validation prevents traversal attacks
 
 - 🦆 **Basic env checking**: Compare `.env` vs `.env.example`
 - 🐳 **Docker Compose support**: Analyze `environment` and `env_file` usage
@@ -39,48 +50,64 @@ EnvQuack is a CLI tool that helps you keep your environment variables synchroniz
 
 ## Installation
 
-### Prebuilt Binaries (Recommended)
+### Quick Install
 
-Download the latest prebuilt binaries from the [Releases page](https://github.com/DuckDHD/EnvQuack/releases):
-
-- [Linux (amd64)](https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0-alpha.1/envquack-linux)
-- [macOS (arm64)](https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0-alpha.1/envquack-macos)
-- [Windows (amd64)](https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0-alpha.1/envquack.exe)
-
+#### macOS (Intel & Apple Silicon)
 ```bash
-# Linux/macOS quick install
-curl -L https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0-alpha.1/envquack-linux -o envquack
-chmod +x envquack
-./envquack --help
+# Intel
+curl -L https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0/envquack-darwin-amd64 -o envquack
+
+# Apple Silicon (M1/M2/M3)
+curl -L https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0/envquack-darwin-arm64 -o envquack
+
+chmod +x envquack && sudo mv envquack /usr/local/bin/
+envquack --version
 ```
 
-### Using Go Install (Recommended)
-
+#### Linux (amd64)
 ```bash
-go install github.com/DuckDHD/EnvQuack/cmd/envquack@v0.1.0-alpha.1
+curl -L https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0/envquack-linux-amd64 -o envquack
+chmod +x envquack && sudo mv envquack /usr/local/bin/
+envquack --version
 ```
 
-### From Source
+#### Windows (amd64, PowerShell)
+```powershell
+Invoke-WebRequest -Uri https://github.com/DuckDHD/EnvQuack/releases/download/v0.1.0/envquack-windows-amd64.exe -OutFile envquack.exe
+.\envquack.exe --version
+```
 
+### Install with Go
 ```bash
 git clone https://github.com/DuckDHD/EnvQuack
 cd EnvQuack
 go build -o envquack cmd/envquack/main.go
 ```
 
-### Download Binary
+### Verify Installation
+```bash
+envquack --version
+# EnvQuack v0.1.0
+```
 
-Download the latest release from [GitHub Releases](https://github.com/DuckDHD/EnvQuack/releases/tag/v0.1.0-alpha.1)
+---
 
-## Usage
+## Quickstart
 
-### Check for differences
+### 1. Create `.env.example`
+```bash
+NODE_ENV=production
+API_URL=https://api.example.com
+DATABASE_URL=postgres://user:pass@localhost:5432/mydb
+API_KEY=your_api_key
+```
 
+### 2. Run a check
 ```bash
 envquack check
 ```
 
-Example output when issues are found:
+**Example output with issues:**
 ```
    __
 <(X )___   QUACK!
@@ -89,31 +116,35 @@ Example output when issues are found:
 
 QUACK! 🦆 Environment issues detected:
 
-🔴 Missing variables (present in .env.example but not in .env):
-  - DB_HOST
+❌ Missing variables in .env:
   - API_KEY
-  - SECRET_TOKEN
+  - DATABASE_URL
 
-🟡 Extra variables (present in .env but not in .env.example):
+⚠️  Extra variables in .env:
   - DEBUG_MODE
-  - TEMP_VAR
-
-(Your gopher-duck is angry. Fix your .env!)
+  - OLD_CONFIG
 ```
 
-When everything is aligned:
+**When everything is aligned:**
 ```bash
-$ envquack check
-✅ All envs aligned.
-(Your gopher-duck is calm and happy.)
+   __
+<(o )___   
+ ( ._> /
+  '---'
+
+✅ All envs aligned. The duck approves! 🦆
 ```
 
-### Sync missing variables
+---
 
-Automatically add missing variables to your `.env` file:
+## Commands
+
+### `check`
+Check for differences between `.env` and `.env.example`.
 
 ```bash
-envquack sync
+envquack check
+envquack check --env .env.local --example .env.template
 ```
 
 This will:
@@ -160,7 +191,7 @@ EnvQuack automatically creates timestamped backups before modifying your `.env` 
 envquack restore --list
 ```
 
-Example output:
+✅ Successfully synced 2 variables!
 ```
 Available backups for .env:
   1. .env.backup.20241027-143052 (2024-10-27 14:30:52, 112 bytes)
@@ -197,54 +228,50 @@ For example:
 - **Permission preservation**: Backup files maintain the same permissions as the original
 - **No data loss**: Even if sync fails, your original data is safe in the backup
 
-### Comprehensive audit
+---
 
-Run a full environment audit across all your Docker files:
+### `audit`
+Run a comprehensive environment audit across all sources.
 
 ```bash
 envquack audit
+envquack audit --verbose
 ```
 
-This will check:
-- `.env` vs `.env.example` consistency
-- Docker Compose environment requirements
-- Dockerfile ARG and ENV usage
-- Missing env_file references
+**Checks performed:**
+1. `.env` vs `.env.example` consistency
+2. Docker Compose environment requirements
+3. Dockerfile ARG/ENV usage
+4. Unused variables and hardcoded values (verbose mode)
 
-Example output:
-```
-🔍 Running comprehensive environment audit...
+---
 
-📋 Checking .env vs .env.example:
-  ✅ Basic env check passed
+## Advanced Usage
 
-🐳 Checking docker-compose environment requirements:
-  ✅ Docker Compose check passed
-
-🐋 Checking Dockerfile environment requirements:
-  🔴 Variables required by Dockerfile but missing in env files:
-    - BUILD_VERSION
-    - REDIS_URL
-
-  🟠 ARG variables declared but never used:
-    - UNUSED_BUILD_ARG
-
-   __
-<(X )___   QUACK!
- ( ._> /
-  '---'
-QUACK! 🦆 Audit found issues that need attention!
+### Custom File Paths
+```bash
+envquack check --env config/.env --example config/.env.example
+envquack audit --compose docker/compose.yml --dockerfile docker/Dockerfile
 ```
 
-### Custom file paths
+### CI/CD Integration
+```bash
+# In your CI pipeline
+envquack check --no-duck --no-color
+if [ $? -eq 1 ]; then
+  echo "❌ Environment variables out of sync!"
+  exit 1
+fi
+```
 
+### Debug Mode
 ```bash
 envquack check --env .env.local --example .env.template
 envquack sync --env config/.env --example config/.env.example
 envquack audit --compose docker-compose.prod.yml --dockerfile Dockerfile.prod
 ```
 
-### Options
+---
 
 #### Global Flags
 
@@ -270,95 +297,128 @@ envquack audit --compose docker-compose.prod.yml --dockerfile Dockerfile.prod
 
 ## Examples
 
-### Complete Docker setup workflow
+### Automatic Backups
 
-1. Create your environment files:
-
-```bash
-# .env.example - Document all required variables
-NODE_ENV=production
-API_URL=https://api.example.com
-DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
-SECRET_KEY=your_secret_key_here
-REDIS_URL=redis://localhost:6379
-```
-
-2. Create your Dockerfile with proper ARG/ENV usage:
-
-```dockerfile
-# Build arguments
-ARG NODE_ENV=production
-ARG API_URL
-ARG SECRET_KEY
-
-# Runtime environment
-ENV NODE_ENV=${NODE_ENV}
-ENV API_BASE_URL=${API_URL}  
-ENV JWT_SECRET=${SECRET_KEY}
-```
-
-3. Set up docker-compose.yml:
-
-```yaml
-services:
-  web:
-    build:
-      args:
-        - NODE_ENV=${NODE_ENV}
-        - API_URL=${API_URL}
-        - SECRET_KEY=${SECRET_KEY}
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-    env_file: .env
-```
-
-4. Run comprehensive audit:
+Every `sync` operation automatically creates a timestamped backup:
 
 ```bash
+$ envquack sync
+📦 Backup created: .env.backup.20241027-143052
+✓ Synced 3 variables to .env
+```
+
+**Backup format:** `.env.backup.YYYYMMDD-HHMMSS`
+
+**Location:** Same directory as the original file
+
+---
+
+### Restore from Backup
+
+**List available backups:**
+```bash
+envquack restore --list
+```
+
+**Restore from latest:**
+```bash
+envquack restore --latest
+✅ Successfully restored .env from .env.backup.20241027-143052
+```
+
+**Restore from specific backup:**
+```bash
+envquack restore .env.backup.20241027-120015
+```
+
+---
+
+### Backup Management
+
+**Skip backup (not recommended):**
+```bash
+envquack sync --no-backup
+```
+
+**Auto-cleanup old backups:**
+```bash
+envquack sync --cleanup-backups
+# Keeps 5 most recent, deletes backups older than 30 days
+```
+
+**Manual cleanup:**
+```bash
+# Remove backups older than 7 days
+find . -name ".env.backup.*" -mtime +7 -delete
+```
+
+---
+
+## Options
+
+| Option                | Default                | Description |
+|-----------------------|------------------------|-------------|
+| `--env`               | `.env`                 | Path to your env file |
+| `--example`           | `.env.example`         | Path to your example file |
+| `--compose`           | `docker-compose.yml`   | Path to docker-compose file |
+| `--dockerfile`        | `Dockerfile`           | Path to Dockerfile |
+| `-v, --verbose`       | Off                    | Show unused ARGs and extra info |
+| `--no-color`          | Off                    | Disable colored output |
+| `--no-duck`           | Off                    | Disable ASCII duck art |
+| `--no-backup`         | Off                    | Skip backup creation (dangerous) |
+| `--cleanup-backups`   | Off                    | Auto-cleanup old backups |
+| `--show-secrets`      | Off                    | Show actual sensitive values (insecure) |
+| `--allow-unsafe-paths`| Off                    | Allow files outside working directory |
+
+---
+
+## Example Workflows
+
+### Basic Development Workflow
+```bash
+# Check for drift
+envquack check
+
+# Sync missing variables
+envquack sync
+
+# Run comprehensive audit
 envquack audit --verbose
 ```
 
-5. Sync missing variables:
-
+### CI/CD Pipeline
 ```bash
-envquack sync
+#!/bin/bash
+# .github/workflows/env-check.yml or similar
+
+# Check environment variables
+envquack check --no-duck --no-color
+if [ $? -ne 0 ]; then
+  echo "❌ Environment variables are out of sync!"
+  echo "Run 'envquack sync' locally to fix."
+  exit 1
+fi
+
+echo "✅ Environment variables are synchronized"
 ```
 
-6. Fill in actual values in your `.env` file.
-
-### Basic workflow
-
-1. Create your `.env.example` with all required variables:
+### Docker Project Audit
 ```bash
-# .env.example
-DB_HOST=localhost
-DB_PORT=5432
-API_KEY=your_api_key_here
-SECRET_TOKEN=your_secret_here
+# Check everything in one command
+envquack audit \
+  --compose docker-compose.yml \
+  --dockerfile Dockerfile \
+  --verbose
 ```
 
-2. Check if your `.env` is complete:
+### Recovery Workflow
 ```bash
+# Oops, sync broke something!
+envquack restore --list
+envquack restore --latest
+
+# Verify restoration
 envquack check
-```
-
-3. Sync missing variables:
-```bash
-envquack sync
-```
-
-4. Fill in the actual values in your `.env` file.
-
-### CI/CD Integration
-
-Add to your CI pipeline to ensure env files stay in sync:
-
-```yaml
-# GitHub Actions example
-- name: Check env files
-  run: |
-    go install github.com/DuckDHD/EnvQuack/cmd/envquack@v0.1.0-alpha.1
-    envquack check --no-duck
 ```
 
 ## Error Messages
@@ -559,11 +619,11 @@ envquack check --allow-unsafe-paths --env /opt/configs/.env
 
 ## Development
 
-### Project Structure
+## Project Structure
 
 ```
 envquack/
-├── cmd/envquack/main.go      # CLI entrypoint
+├── cmd/envquack/main.go          # CLI entry point
 ├── internal/
 │   ├── parser/
 │   │   ├── env.go           # .env file parser
@@ -585,93 +645,183 @@ envquack/
 │   ├── cli/commands.go      # Cobra CLI commands
 │   └── quack/ascii.go       # ASCII art and messages
 ├── go.mod
-└── README.md
+├── README.md
+├── CHANGELOG.md                  # Release notes
+└── TEST_COVERAGE_REPORT.md      # Coverage details
 ```
-
-### Running tests
-
-```bash
-go test ./...
-```
-
-### Building
-
-```bash
-go build -o envquack cmd/envquack/main.go
-```
-
-## Roadmap
-
-- ✅ **v0.1.0-alpha.1**: Basic .env comparison, sync, Docker Compose and Dockerfile support
-- 🚧 **v0.1.0**: Stable release with bug fixes and polish
-- 📋 **v0.2.0**: Kubernetes ConfigMap/Secret support
-- 🎯 **v1.0.0**: Central schema files and multi-environment support
-
-## Alpha Release Notes
-
-This is **v0.1.0-alpha.1** - our first public release! 🎉
-
-**What works well:**
-- ✅ Basic .env comparison and sync
-- ✅ Docker Compose environment analysis  
-- ✅ Dockerfile ARG/ENV parsing
-- ✅ Comprehensive audit across all sources
-- ✅ Beautiful CLI output with duck art 🦆
-
-**What might have rough edges:**
-- ⚠️ Limited test coverage (we're working on it!)
-- ⚠️ Some edge cases in complex configurations
-- ⚠️ Error messages could be more helpful
-- ⚠️ Performance not optimized for huge files
-
-**Help us improve!**
-- 🐛 [Report bugs](https://github.com/DuckDHD/EnvQuack/issues)
-- 💡 [Request features](https://github.com/DuckDHD/EnvQuack/issues)
-- 🤝 [Contribute code](https://github.com/DuckDHD/EnvQuack/pulls)
-- ⭐ Star the repo if you find it useful!
-
-Your feedback will directly shape the stable v0.1.0 release. Thank you for being an early adopter! 🦆
-
-We welcome contributions! This is an alpha release, so there's lots of room for improvement.
-
-### How to Contribute
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests if applicable
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Submit a pull request
-
-### Development Setup
-
-```bash
-git clone https://github.com/DuckDHD/EnvQuack
-cd EnvQuack
-go mod tidy
-go build -o envquack cmd/envquack/main.go
-```
-
-### Areas That Need Help
-
-- [ ] Unit tests for all parsers
-- [ ] Integration tests
-- [ ] Windows compatibility testing
-- [ ] Performance optimization for large files
-- [ ] Better error messages
-- [ ] Documentation improvements
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
 
 ---
 
-Made with 🦆 and ❤️ for developers who like their environment variables organized!
+## Supported Platforms
+
+| OS      | Architecture | Status             |
+|---------|--------------|-------------------|
+| Linux   | amd64        | ✅ Fully supported |
+| macOS   | amd64 (Intel)| ✅ Fully supported |
+| macOS   | arm64 (M1+)  | ✅ Fully supported |
+| Windows | amd64        | ✅ Fully supported |
+
+---
+
+## Roadmap
+
+### ✅ Completed
+- **v0.1.0-alpha.1** - Initial alpha release
+- **v0.1.0** - Production release with security, backups, testing
+
+### 🚧 Planned
+
+#### v0.1.1 (Quick Wins)
+- Configuration file support (`.envquack.yml`)
+- JSON/YAML output for CI/CD
+- Duplicate variable detection
+- Variable naming convention validation
+
+#### v0.2.0 (Major Features)
+- Multi-environment support (`.env.dev`, `.env.prod`, etc.)
+- Type validation (PORT must be integer, URL format, etc.)
+- Variable expansion (`${BASE_URL}/api`)
+- Git integration (pre-commit hooks)
+- Kubernetes ConfigMap/Secret support
+
+#### v1.0.0 (Enterprise)
+- Central schema files
+- Team collaboration features
+- API access
+- Advanced reporting
+
+See [ROADMAP.md](ROADMAP.md) for detailed feature plans.
+
+---
+
+## Testing & Quality
+
+EnvQuack has comprehensive test coverage:
+
+| Package | Coverage | Status |
+|---------|----------|--------|
+| Parser | 100% | ✅ Perfect |
+| Masking | 100% | ✅ Perfect |
+| Errors | 100% | ✅ Perfect |
+| Quack | 100% | ✅ Perfect |
+| Security | 87.9% | ✅ Excellent |
+| Checker | 83.2% | ✅ Excellent |
+| Backup | 75.0% | ✅ Good |
+| **Total** | **75.6%** | ✅ **Production Ready** |
+
+**Test Statistics:**
+- 110+ test scenarios
+- 13 test files
+- All critical paths covered
+- Cross-platform verified
+
+See [TEST_COVERAGE_REPORT.md](TEST_COVERAGE_REPORT.md) for details.
+
+---
+
+## Contributing
+
+We welcome contributions! 🎉
+
+### How to Contribute
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Make** your changes
+4. **Add tests** (we maintain 75%+ coverage)
+5. **Commit** with clear messages
+6. **Push** to your fork
+7. **Submit** a pull request
+
+### Guidelines
+
+- Write tests for new features
+- Update documentation
+- Follow existing code style
+- Add entries to CHANGELOG.md
+- Ensure all tests pass: `go test ./...`
+
+### Areas We Need Help
+
+- 🐛 Bug reports and fixes
+- 📖 Documentation improvements
+- ✨ Feature suggestions
+- 🌐 Internationalization (i18n)
+- 🎨 UI/UX improvements
+- 🧪 More test coverage
+
+See [open issues](https://github.com/DuckDHD/EnvQuack/issues) or [create a new one](https://github.com/DuckDHD/EnvQuack/issues/new).
+
+---
+
+## FAQ
+
+### Q: Is EnvQuack safe for production use?
+**A:** Yes! v0.1.0 is production-ready with 75.6% test coverage, automatic backups, and comprehensive security features.
+
+### Q: Will EnvQuack modify my files without permission?
+**A:** Only the `sync` command modifies files, and it always creates a backup first (unless you use `--no-backup`).
+
+### Q: How does EnvQuack handle secrets?
+**A:** EnvQuack automatically masks 20+ patterns of sensitive values (API keys, passwords, tokens) in all output.
+
+### Q: Can I use EnvQuack in CI/CD?
+**A:** Absolutely! EnvQuack has proper exit codes and supports `--no-color` and `--no-duck` for clean CI logs.
+
+### Q: What if I need to access files outside my project directory?
+**A:** Use `--allow-unsafe-paths` flag, but be cautious as this bypasses security validation.
+
+### Q: Does EnvQuack send any data externally?
+**A:** No. EnvQuack runs entirely locally and never sends data anywhere.
+
+---
+
+## Security
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please email **[your-email]** instead of using the issue tracker.
+
+### Security Features
+
+- ✅ Path traversal prevention
+- ✅ File size limits (10MB default)
+- ✅ Sensitive value masking
+- ✅ No network access
+- ✅ No command execution
+- ✅ Input validation
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+Special thanks to:
+- All alpha testers who provided feedback
+- Contributors who reported issues and submitted PRs
+- The Go community for excellent tooling and libraries
+
+---
+
+## Links
+
+- **GitHub Repository**: https://github.com/DuckDHD/EnvQuack
+- **Issue Tracker**: https://github.com/DuckDHD/EnvQuack/issues
+- **Releases**: https://github.com/DuckDHD/EnvQuack/releases
+- **Documentation**: https://github.com/DuckDHD/EnvQuack#readme
+- **CHANGELOG**: [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+<div align="center">
+
+**Made with 🦆 and ❤️ for developers who like their environment variables tidy!**
+
+[⬆ Back to Top](#envquack-)
+
+</div>
