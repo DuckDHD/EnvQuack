@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/DuckDHD/EnvQuack/internal/masking"
 	"github.com/DuckDHD/EnvQuack/internal/parser"
 	"github.com/DuckDHD/EnvQuack/internal/quack"
 )
@@ -16,6 +17,7 @@ type ComposeDiffResult struct {
 	ExtraInEnv       []string            // Variables in env files but not used in compose
 	MissingEnvFiles  []string            // env_file references that don't exist
 	ServiceBreakdown map[string][]string // Missing variables by service
+	EnvValues        map[string]string   // Actual values for extra keys (for verbose display)
 }
 
 // HasIssues returns true if there are any issues
@@ -58,6 +60,7 @@ func compareComposeWithEnvVars(composeInfo *parser.ComposeEnvInfo, envVars parse
 		ExtraInEnv:       []string{},
 		MissingEnvFiles:  []string{},
 		ServiceBreakdown: make(map[string][]string),
+		EnvValues:        make(map[string]string),
 	}
 
 	// Get all variables referenced in compose (only actual variable references, not env keys)
@@ -78,6 +81,8 @@ func compareComposeWithEnvVars(composeInfo *parser.ComposeEnvInfo, envVars parse
 	for envVar := range envVars {
 		if !composeVarSet[envVar] {
 			result.ExtraInEnv = append(result.ExtraInEnv, envVar)
+			// Store the actual value for verbose display
+			result.EnvValues[envVar] = envVars[envVar]
 		}
 	}
 
@@ -220,6 +225,14 @@ func GenerateComposeReport(result *ComposeDiffResult, opts *ReportOptions) strin
 		}
 
 		for _, key := range result.ExtraInEnv {
+			if opts.Verbose && result.EnvValues != nil {
+				if val, ok := result.EnvValues[key]; ok {
+					// Mask the actual value for security
+					maskedVal := masking.MaskIfSensitive(key, val)
+					report.WriteString(fmt.Sprintf("  - %s (value: %s)\n", key, maskedVal))
+					continue
+				}
+			}
 			report.WriteString(fmt.Sprintf("  - %s\n", key))
 		}
 		report.WriteString("\n")

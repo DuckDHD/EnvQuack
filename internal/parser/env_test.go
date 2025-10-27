@@ -557,3 +557,117 @@ func BenchmarkParseEnvFile_Large(b *testing.B) {
 		}
 	}
 }
+
+// TestParseEnvFile_PathValidation tests security path validation
+func TestParseEnvFile_PathValidation(t *testing.T) {
+	// Create a temporary directory for testing
+	tmpDir := t.TempDir()
+
+	// Change to temp directory for consistent testing
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+
+	// Create a valid test file
+	validFile := ".env"
+	if err := os.WriteFile(validFile, []byte("TEST=value"), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		path        string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid relative path in current dir",
+			path:        ".env",
+			expectError: false,
+		},
+		{
+			name:        "reject parent directory traversal",
+			path:        "../.env",
+			expectError: true,
+			errorMsg:    "invalid file path",
+		},
+		{
+			name:        "reject multiple parent traversal",
+			path:        "../../etc/passwd",
+			expectError: true,
+			errorMsg:    "invalid file path",
+		},
+		{
+			name:        "reject absolute path (Unix style)",
+			path:        "/etc/passwd",
+			expectError: true,
+			errorMsg:    "invalid file path",
+		},
+		{
+			name:        "reject hidden parent traversal",
+			path:        "config/../../etc/passwd",
+			expectError: true,
+			errorMsg:    "invalid file path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseEnvFile(tt.path)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("expected error containing '%s', got nil", tt.errorMsg)
+				} else if !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error containing '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestParseEnvFile_FileSizeValidation tests file size limits
+func TestParseEnvFile_FileSizeValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to change to temp directory: %v", err)
+	}
+
+	// Create a file larger than 10MB (the validation limit)
+	largeFile := "large.env"
+	f, err := os.Create(largeFile)
+	if err != nil {
+		t.Fatalf("failed to create large file: %v", err)
+	}
+	// Create an 11MB file
+	if err := f.Truncate(11 * 1024 * 1024); err != nil {
+		f.Close()
+		t.Fatalf("failed to set file size: %v", err)
+	}
+	f.Close()
+
+	_, err = ParseEnvFile(largeFile)
+	if err == nil {
+		t.Error("expected error for file too large, got nil")
+	} else if !strings.Contains(err.Error(), "file too large") && !strings.Contains(err.Error(), "file validation failed") {
+		t.Errorf("expected 'file too large' error, got: %v", err)
+	}
+}

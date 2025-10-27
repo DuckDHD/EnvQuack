@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DuckDHD/EnvQuack/internal/masking"
 	"github.com/DuckDHD/EnvQuack/internal/quack"
 )
 
@@ -54,6 +55,14 @@ func GenerateReport(result *DiffResult, opts *ReportOptions) string {
 		}
 
 		for _, key := range result.Missing {
+			if opts.Verbose && result.ExampleValues != nil {
+				if val, ok := result.ExampleValues[key]; ok {
+					// Mask the example value for security
+					maskedVal := masking.MaskIfSensitive(key, val)
+					report.WriteString(fmt.Sprintf("  - %s (example: %s)\n", key, maskedVal))
+					continue
+				}
+			}
 			report.WriteString(fmt.Sprintf("  - %s\n", key))
 		}
 		report.WriteString("\n")
@@ -68,6 +77,14 @@ func GenerateReport(result *DiffResult, opts *ReportOptions) string {
 		}
 
 		for _, key := range result.Extra {
+			if opts.Verbose && result.EnvValues != nil {
+				if val, ok := result.EnvValues[key]; ok {
+					// Mask the actual value for security
+					maskedVal := masking.MaskIfSensitive(key, val)
+					report.WriteString(fmt.Sprintf("  - %s (value: %s)\n", key, maskedVal))
+					continue
+				}
+			}
 			report.WriteString(fmt.Sprintf("  - %s\n", key))
 		}
 		report.WriteString("\n")
