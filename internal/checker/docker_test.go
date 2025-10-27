@@ -254,10 +254,22 @@ DATABASE_URL=postgres://localhost/myapp`,
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory and files
 			tmpDir := t.TempDir()
-			dockerfilePath := filepath.Join(tmpDir, "Dockerfile")
+
+			// Change to temp directory to use relative paths (security validation)
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer os.Chdir(originalDir)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			dockerfilePath := "Dockerfile"
 
 			// Write Dockerfile
-			err := os.WriteFile(dockerfilePath, []byte(tt.dockerfileContent), 0644)
+			err = os.WriteFile(dockerfilePath, []byte(tt.dockerfileContent), 0644)
 			if err != nil {
 				t.Fatalf("Failed to create Dockerfile: %v", err)
 			}
@@ -265,12 +277,11 @@ DATABASE_URL=postgres://localhost/myapp`,
 			// Write env files
 			var envFilePaths []string
 			for filename, content := range tt.envFiles {
-				envPath := filepath.Join(tmpDir, filename)
-				err := os.WriteFile(envPath, []byte(content), 0644)
+				err := os.WriteFile(filename, []byte(content), 0644)
 				if err != nil {
 					t.Fatalf("Failed to create env file %s: %v", filename, err)
 				}
-				envFilePaths = append(envFilePaths, envPath)
+				envFilePaths = append(envFilePaths, filename)
 			}
 
 			// Run the comparison

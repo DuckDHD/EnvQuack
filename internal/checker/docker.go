@@ -5,17 +5,20 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/DuckDHD/EnvQuack/internal/masking"
 	"github.com/DuckDHD/EnvQuack/internal/parser"
 	"github.com/DuckDHD/EnvQuack/internal/quack"
 )
 
 // DockerfileDiffResult represents comparison between env files and Dockerfile
 type DockerfileDiffResult struct {
-	MissingInEnv       []string // Variables in Dockerfile but not in env files
-	ExtraInEnv         []string // Variables in env files but not used in Dockerfile
-	UnusedArgs         []string // ARG variables not referenced anywhere
-	HardcodedEnvs      []string // ENV variables with hardcoded values (might need to be configurable)
-	MissingArgDefaults []string // ARG variables without default values
+	MissingInEnv       []string          // Variables in Dockerfile but not in env files
+	ExtraInEnv         []string          // Variables in env files but not used in Dockerfile
+	UnusedArgs         []string          // ARG variables not referenced anywhere
+	HardcodedEnvs      []string          // ENV variables with hardcoded values (might need to be configurable)
+	MissingArgDefaults []string          // ARG variables without default values
+	EnvValues          map[string]string // Actual values for extra keys (for verbose display)
+	HardcodedValues    map[string]string // Hardcoded values (for verbose display)
 }
 
 // HasIssues returns true if there are any issues
@@ -60,6 +63,8 @@ func compareDockerfileWithEnvVars(dockerfileInfo *parser.DockerfileEnvInfo, envV
 		UnusedArgs:         []string{},
 		HardcodedEnvs:      []string{},
 		MissingArgDefaults: []string{},
+		EnvValues:          make(map[string]string),
+		HardcodedValues:    make(map[string]string),
 	}
 
 	// Get all variables referenced in Dockerfile
@@ -95,6 +100,8 @@ func compareDockerfileWithEnvVars(dockerfileInfo *parser.DockerfileEnvInfo, envV
 	for envVar := range envVars {
 		if !dockerfileVarSet[envVar] {
 			result.ExtraInEnv = append(result.ExtraInEnv, envVar)
+			// Store the actual value for verbose display
+			result.EnvValues[envVar] = envVars[envVar]
 		}
 	}
 
@@ -118,6 +125,8 @@ func compareDockerfileWithEnvVars(dockerfileInfo *parser.DockerfileEnvInfo, envV
 		// Skip empty values and obvious constants
 		if value != "" && !isObviousConstant(value) {
 			result.HardcodedEnvs = append(result.HardcodedEnvs, envVar)
+			// Store the hardcoded value for verbose display
+			result.HardcodedValues[envVar] = value
 		}
 	}
 
@@ -256,6 +265,14 @@ func GenerateDockerfileReport(result *DockerfileDiffResult, opts *ReportOptions)
 		}
 
 		for _, key := range result.HardcodedEnvs {
+			if result.HardcodedValues != nil {
+				if val, ok := result.HardcodedValues[key]; ok {
+					// Mask the hardcoded value for security
+					maskedVal := masking.MaskIfSensitive(key, val)
+					report.WriteString(fmt.Sprintf("  - %s (value: %s)\n", key, maskedVal))
+					continue
+				}
+			}
 			report.WriteString(fmt.Sprintf("  - %s\n", key))
 		}
 		report.WriteString("\n")
@@ -284,6 +301,14 @@ func GenerateDockerfileReport(result *DockerfileDiffResult, opts *ReportOptions)
 		}
 
 		for _, key := range result.ExtraInEnv {
+			if opts.Verbose && result.EnvValues != nil {
+				if val, ok := result.EnvValues[key]; ok {
+					// Mask the actual value for security
+					maskedVal := masking.MaskIfSensitive(key, val)
+					report.WriteString(fmt.Sprintf("  - %s (value: %s)\n", key, maskedVal))
+					continue
+				}
+			}
 			report.WriteString(fmt.Sprintf("  - %s\n", key))
 		}
 		report.WriteString("\n")

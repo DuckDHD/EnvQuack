@@ -1,12 +1,14 @@
 package parser
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/DuckDHD/EnvQuack/internal/errors"
+	"github.com/DuckDHD/EnvQuack/internal/security"
 )
 
 // DockerfileEnvInfo contains environment information extracted from Dockerfile
@@ -25,11 +27,24 @@ var (
 
 // ParseDockerfile parses a Dockerfile and extracts environment variables
 func ParseDockerfile(filename string) (*DockerfileEnvInfo, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open Dockerfile: %w", err)
+	// Validate file path for security
+	if err := security.ValidateFilePath(filename); err != nil {
+		return nil, fmt.Errorf("invalid file path: %w", err)
 	}
-	defer file.Close()
+
+	// Validate file size to prevent OOM attacks
+	if err := security.ValidateFileSize(filename, 10); err != nil {
+		return nil, err
+	}
+
+	// Read entire file to track line numbers
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read Dockerfile: %w", err)
+	}
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
 
 	info := &DockerfileEnvInfo{
 		EnvVars:      make(EnvVars),
@@ -37,52 +52,101 @@ func ParseDockerfile(filename string) (*DockerfileEnvInfo, error) {
 		VariableRefs: []string{},
 	}
 
-	scanner := bufio.NewScanner(file)
-	lineNum := 0
 	var currentInstruction strings.Builder
+	var instructionStartLine int
 
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
+	for lineNum, line := range lines {
+		lineNumber := lineNum + 1 // 1-indexed for users
+		trimmedLine := strings.TrimSpace(line)
 
 		// Skip empty lines and comments
-		if line == "" || strings.HasPrefix(line, "#") {
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
 			continue
 		}
 
+		// Track the start of multi-line instructions
+		if currentInstruction.Len() == 0 {
+			instructionStartLine = lineNumber
+		}
+
 		// Handle line continuation with backslash
-		if strings.HasSuffix(line, "\\") {
-			currentInstruction.WriteString(strings.TrimSuffix(line, "\\"))
+		if strings.HasSuffix(trimmedLine, "\\") {
+			currentInstruction.WriteString(strings.TrimSuffix(trimmedLine, "\\"))
 			currentInstruction.WriteString(" ")
 			continue
 		}
 
 		// Complete instruction (either single line or end of multi-line)
+		var fullInstruction string
 		if currentInstruction.Len() > 0 {
-			line = currentInstruction.String() + line
+			fullInstruction = currentInstruction.String() + trimmedLine
 			currentInstruction.Reset()
+		} else {
+			fullInstruction = trimmedLine
 		}
 
 		// Parse the instruction
-		if err := parseDockerfileInstruction(line, info); err != nil {
-			// Log warning but continue parsing
-			fmt.Printf("Warning: line %d - %v\n", lineNum, err)
+		if err := parseDockerfileInstructionWithLine(fullInstruction, info, filename, lines, instructionStartLine); err != nil {
+			return nil, err
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading Dockerfile: %w", err)
-	}
-
 	// Extract variable references from all content
-	file.Seek(0, 0) // Reset file pointer
-	content, _ := os.ReadFile(filename)
-	info.VariableRefs = extractDockerfileVariableRefs(string(content))
+	info.VariableRefs = extractDockerfileVariableRefs(content)
 
 	return info, nil
 }
 
-// parseDockerfileInstruction parses a single Dockerfile instruction
+// parseDockerfileInstructionWithLine parses a single Dockerfile instruction with line tracking
+func parseDockerfileInstructionWithLine(line string, info *DockerfileEnvInfo, filename string, allLines []string, lineNum int) error {
+	line = strings.TrimSpace(line)
+	upperLine := strings.ToUpper(line)
+
+	// Parse ENV instructions
+	if envMatch := envInstructionRegex.FindStringSubmatch(upperLine); envMatch != nil {
+		envContent := strings.TrimSpace(line[4:]) // Remove "ENV " prefix from original line
+		if err := parseEnvInstruction(envContent, info.EnvVars); err != nil {
+			return errors.NewParseError(filename, lineNum, err.Error()).
+				WithContext(allLines, lineNum, 2).
+				WithHint("ENV format: ENV KEY=value or ENV KEY1=value1 KEY2=value2")
+		}
+		return nil
+	}
+
+	// Parse ARG instructions
+	if argMatch := argInstructionRegex.FindStringSubmatch(upperLine); argMatch != nil {
+		argContent := strings.TrimSpace(line[4:]) // Remove "ARG " prefix from original line
+		if err := parseArgInstruction(argContent, info.ArgVars); err != nil {
+			return errors.NewParseError(filename, lineNum, err.Error()).
+				WithContext(allLines, lineNum, 2).
+				WithHint("ARG format: ARG NAME or ARG NAME=defaultvalue")
+		}
+		return nil
+	}
+
+	// Check for common instruction typos (only if line starts with a letter)
+	if len(line) > 0 && ((line[0] >= 'A' && line[0] <= 'Z') || (line[0] >= 'a' && line[0] <= 'z')) {
+		firstWord := strings.Fields(upperLine)
+		if len(firstWord) > 0 {
+			instruction := firstWord[0]
+			// Check for common typos
+			switch instruction {
+			case "ARGS":
+				return errors.NewParseError(filename, lineNum, "Invalid instruction 'ARGS'").
+					WithContext(allLines, lineNum, 2).
+					WithHint("Did you mean 'ARG'? See https://docs.docker.com/engine/reference/builder/")
+			case "ENVS":
+				return errors.NewParseError(filename, lineNum, "Invalid instruction 'ENVS'").
+					WithContext(allLines, lineNum, 2).
+					WithHint("Did you mean 'ENV'? See https://docs.docker.com/engine/reference/builder/")
+			}
+		}
+	}
+
+	return nil
+}
+
+// parseDockerfileInstruction parses a single Dockerfile instruction (legacy, for backward compatibility)
 func parseDockerfileInstruction(line string, info *DockerfileEnvInfo) error {
 	line = strings.TrimSpace(line)
 	upperLine := strings.ToUpper(line)

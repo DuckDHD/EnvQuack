@@ -8,8 +8,10 @@ import (
 
 // DiffResult represents the difference between two sets of environment variables
 type DiffResult struct {
-	Missing []string // Keys present in example but missing in env
-	Extra   []string // Keys present in env but not in example
+	Missing       []string          // Keys present in example but missing in env
+	Extra         []string          // Keys present in env but not in example
+	ExampleValues map[string]string // Example values for missing keys
+	EnvValues     map[string]string // Actual values for extra keys
 }
 
 // HasIssues returns true if there are any differences
@@ -35,14 +37,18 @@ func CompareEnvFiles(envFile, exampleFile string) (*DiffResult, error) {
 // CompareEnvVars compares two sets of environment variables
 func CompareEnvVars(env, example parser.EnvVars) *DiffResult {
 	result := &DiffResult{
-		Missing: []string{},
-		Extra:   []string{},
+		Missing:       []string{},
+		Extra:         []string{},
+		ExampleValues: make(map[string]string),
+		EnvValues:     make(map[string]string),
 	}
 
 	// Find missing vars (in example but not in env)
 	for key := range example {
 		if !env.Has(key) {
 			result.Missing = append(result.Missing, key)
+			// Store the example value for verbose display
+			result.ExampleValues[key] = example[key]
 		}
 	}
 
@@ -50,6 +56,8 @@ func CompareEnvVars(env, example parser.EnvVars) *DiffResult {
 	for key := range env {
 		if !example.Has(key) {
 			result.Extra = append(result.Extra, key)
+			// Store the actual value for verbose display
+			result.EnvValues[key] = env[key]
 		}
 	}
 

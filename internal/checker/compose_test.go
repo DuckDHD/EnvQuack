@@ -3,7 +3,6 @@ package checker
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -223,10 +222,22 @@ DATABASE_URL=postgres://localhost/myapp`,
 		t.Run(tt.name, func(t *testing.T) {
 			// Create temporary directory and files
 			tmpDir := t.TempDir()
-			composeFile := filepath.Join(tmpDir, "docker-compose.yml")
+
+			// Change to temp directory to use relative paths (security validation)
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer os.Chdir(originalDir)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			composeFile := "docker-compose.yml"
 
 			// Write compose file
-			err := os.WriteFile(composeFile, []byte(tt.composeContent), 0644)
+			err = os.WriteFile(composeFile, []byte(tt.composeContent), 0644)
 			if err != nil {
 				t.Fatalf("Failed to create compose file: %v", err)
 			}
@@ -234,12 +245,11 @@ DATABASE_URL=postgres://localhost/myapp`,
 			// Write env files
 			var envFilePaths []string
 			for filename, content := range tt.envFiles {
-				envPath := filepath.Join(tmpDir, filename)
-				err := os.WriteFile(envPath, []byte(content), 0644)
+				err := os.WriteFile(filename, []byte(content), 0644)
 				if err != nil {
 					t.Fatalf("Failed to create env file %s: %v", filename, err)
 				}
-				envFilePaths = append(envFilePaths, envPath)
+				envFilePaths = append(envFilePaths, filename)
 			}
 
 			// Run the comparison
@@ -334,8 +344,20 @@ services:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			composeFile := filepath.Join(tmpDir, "docker-compose.yml")
-			envFile := filepath.Join(tmpDir, ".env")
+
+			// Change to temp directory to use relative paths (security validation)
+			originalDir, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("Failed to get current directory: %v", err)
+			}
+			defer os.Chdir(originalDir)
+
+			if err := os.Chdir(tmpDir); err != nil {
+				t.Fatalf("Failed to change to temp directory: %v", err)
+			}
+
+			composeFile := "docker-compose.yml"
+			envFile := ".env"
 
 			// Setup files
 			if err := tt.setupCompose(composeFile); err != nil {
@@ -859,8 +881,14 @@ DATABASE_URL=postgres://localhost
 PORT=3000`
 
 	tmpDir := b.TempDir()
-	composeFile := filepath.Join(tmpDir, "docker-compose.yml")
-	envFile := filepath.Join(tmpDir, ".env")
+
+	// Change to temp directory to use relative paths (security validation)
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	os.Chdir(tmpDir)
+
+	composeFile := "docker-compose.yml"
+	envFile := ".env"
 
 	os.WriteFile(composeFile, []byte(composeContent), 0644)
 	os.WriteFile(envFile, []byte(envContent), 0644)
@@ -892,8 +920,14 @@ func BenchmarkCompareComposeWithEnv_Large(b *testing.B) {
 	}
 
 	tmpDir := b.TempDir()
-	composeFile := filepath.Join(tmpDir, "docker-compose.yml")
-	envFile := filepath.Join(tmpDir, ".env")
+
+	// Change to temp directory to use relative paths (security validation)
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	os.Chdir(tmpDir)
+
+	composeFile := "docker-compose.yml"
+	envFile := ".env"
 
 	os.WriteFile(composeFile, []byte(composeContent.String()), 0644)
 	os.WriteFile(envFile, []byte(envContent.String()), 0644)
